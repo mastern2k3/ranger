@@ -7,6 +7,7 @@ import click
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
+
 ARCHIVE_FOLDER_NAME = 'archive'
 TO_PROCESS_FOLDER = 'to_process'
 
@@ -16,11 +17,9 @@ def cli():
     pass
 
 
-@click.command()
-@click.option('--target', '-t', default='.')
+@click.command(short_help="start child watchers for folder tree")
+@click.option('--target', '-t', default='.', type=click.Path(exists=True, file_okay=False))
 def start(target):
-
-    click.echo("Booting up")
 
     target_path = os.path.abspath(target)
 
@@ -60,7 +59,7 @@ def start(target):
             fg='green')
 
         running_monitors.append(
-            Popen(['python', __file__, 'monitor', '-t', absolute_process, '-a', absolute_archive]))
+            Popen(['python', __file__, 'monitor', absolute_process, absolute_archive]))
 
     while running_monitors:
         for proc in running_monitors:
@@ -73,32 +72,42 @@ def start(target):
                 continue
 
 
-@click.command()
-@click.option('--target', '-t')
-@click.option('--archive', '-a')
+@click.command(short_help="start monitoring a csv folder")
+@click.argument('target', type=click.Path(exists=True, file_okay=False))
+@click.argument('archive', type=click.Path(exists=False, file_okay=False))
 def monitor(target, archive):
+    """This command watches over a target folder and processes csv files in it one by one.
+    Once processed files will be moved to the archive folder
+    """
+
+    if not os.path.exists(archive):
+        os.makedirs(archive)
+
+    to_process_queue = {
+        os.path.join(target, file)
+        for file
+        in os.listdir(target)
+        if not os.path.isdir(file) and file.endswith(".csv")}
+
     class CsvHandler(PatternMatchingEventHandler):
         patterns = ["*.csv"]
 
         def process(self, event):
-            """
-            event.event_type
-                'modified' | 'created' | 'moved' | 'deleted'
-            event.is_directory
-                True | False
-            event.src_path
-                path/to/observed/file
-            """
-            print(event.src_path, event.event_type)
+            if event.is_directory:
+                return
+
+            click.echo("New file detected at %s" % event.src_path)
+
+            to_process_queue.add(os.path.join(target, event.src_path))
 
         def on_modified(self, event):
-            self.process(event)
-
+            pass
+            
         def on_created(self, event):
             self.process(event)
 
     click.secho(
-        "Started monitoring `%s`" % target,
+        "Monitoring `%s`" % target,
         fg='green')
 
     observer = Observer()
@@ -107,6 +116,17 @@ def monitor(target, archive):
 
     try:
         while True:
+            while to_process_queue:
+                file = next(iter(to_process_queue))
+                click.secho(
+                    "Processing `%s`..." % file,
+                    fg='green')
+                os.rename(file, os.path.join(archive, os.path.basename(file)))
+                to_process_queue.remove(file)
+                click.secho(
+                    "Processed `%s` successfully and moved to `%s`" % (target, archive),
+                    fg='green')
+
             time.sleep(1)
     except KeyboardInterrupt:
         observer.stop()
