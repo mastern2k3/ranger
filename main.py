@@ -1,4 +1,5 @@
 import os
+import shutil
 import time
 from subprocess import Popen
 
@@ -110,7 +111,7 @@ def monitor(target, archive):
                 click.secho(
                     "Processing `%s`..." % file,
                     fg='green')
-                os.rename(file, os.path.join(archive, os.path.basename(file)))
+                shutil.move(file, os.path.join(archive, os.path.basename(file)))
                 to_process_queue.remove(file)
                 click.secho(
                     "Processed `%s` successfully and moved to `%s`" % (target, archive),
