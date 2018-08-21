@@ -32,5 +32,5 @@ python main.py start -t ./monitor -a ./archive
 **ranger** can also can also run in a Docker container, like this:
 
 ```sh
-docker run -v $PWD:/app -v $PWD/monitor:/monitored -v $PWD/archive:/archive ranger
+docker run -v $PWD/monitor:/monitored -v $PWD/archive:/archive ranger
 ```
