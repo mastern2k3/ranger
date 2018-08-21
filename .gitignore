@@ -105,3 +105,4 @@ venv.bak/
 
 # environment activation symlink
 act
+.vscode

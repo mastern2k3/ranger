@@ -7,11 +7,6 @@ import click
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
 
-
-ARCHIVE_FOLDER_NAME = 'archive'
-TO_PROCESS_FOLDER = 'to_process'
-
-
 @click.group()
 def cli():
     pass
@@ -19,40 +14,34 @@ def cli():
 
 @click.command(short_help="start child watchers for folder tree")
 @click.option('--target', '-t', default='.', type=click.Path(exists=True, file_okay=False))
-def start(target):
+@click.option('--archive', '-a', default='./archive', type=click.Path(exists=False, file_okay=False))
+def start(target, archive):
 
     target_path = os.path.abspath(target)
 
-    click.echo("Target folder is `%s`" % target_path)
-
-    process_folder = os.path.join(target_path, TO_PROCESS_FOLDER)
-
-    if not os.path.isdir(process_folder):
-        click.secho(
-            "Could not find processing directory at `%s`, might be missing or not a directory" % process_folder,
-            fg='red')
-        return
+    click.echo("Monitored folder is `%s`" % target_path)
 
     dirs_to_monitor = [
         directory
         for directory
-        in os.listdir(process_folder)
-        if os.path.isdir(os.path.join(process_folder, directory))]
+        in os.listdir(target_path)
+        if os.path.isdir(os.path.join(target_path, directory))]
 
     if not dirs_to_monitor:
         click.secho(
-            "Could not find directories to monitor at `%s`" % process_folder,
+            "Could not find directories to monitor at `%s`" % target_path,
             fg='red')
         return
 
-    archive_folder = os.path.join(target_path, ARCHIVE_FOLDER_NAME)
+    if not os.path.exists(archive):
+        os.makedirs(archive)
 
     running_monitors = []
 
     for directory in dirs_to_monitor:
 
-        absolute_process = os.path.join(process_folder, directory)
-        absolute_archive = os.path.join(archive_folder, directory)
+        absolute_process = os.path.join(target_path, directory)
+        absolute_archive = os.path.join(archive, directory)
 
         click.secho(
             "Dispatching monitor for `%s`" % directory,
@@ -64,7 +53,7 @@ def start(target):
     while running_monitors:
         for proc in running_monitors:
             retcode = proc.poll()
-            if retcode is not None: # Process finished.
+            if retcode is not None:
                 running_monitors.remove(proc)
                 break
             else:
