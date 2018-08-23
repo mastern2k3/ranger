@@ -24,7 +24,7 @@ A small folder watching tool that loads files into elastic search
 You can run it this way:
 
 ```sh
-python main.py start -t ./monitor -a ./archive
+python main.py -t ./monitor -a ./archive
 ```
 
 ## Docker

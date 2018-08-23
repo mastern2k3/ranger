@@ -15,4 +15,4 @@ RUN pipenv install --deploy --system
 
 WORKDIR /app
 
-CMD ["python", "main.py", "start", "-t", "/monitored", "-a", "/archive"]
+CMD ["python", "main.py", "-t", "/monitored", "-a", "/archive"]

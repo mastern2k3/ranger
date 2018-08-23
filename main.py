@@ -1,16 +1,12 @@
 import os
 import shutil
 import time
-from subprocess import Popen
+from multiprocessing import Process
 
 import click
 
 from watchdog.observers import Observer
 from watchdog.events import PatternMatchingEventHandler
-
-@click.group()
-def cli():
-    pass
 
 
 @click.command(short_help="start child watchers for folder tree")
@@ -48,26 +44,17 @@ def start(target, archive):
             "Dispatching monitor for `%s`" % directory,
             fg='green')
 
-        running_monitors.append(
-            Popen(['python', __file__, 'monitor', absolute_process, absolute_archive]))
+        watcher = Process(target=monitor, args=(absolute_process, absolute_archive))
+        watcher.start()
+        running_monitors.append(watcher)
 
-    while running_monitors:
-        for proc in running_monitors:
-            retcode = proc.poll()
-            if retcode is not None:
-                running_monitors.remove(proc)
-                break
-            else:
-                time.sleep(.1)
-                continue
+    for proc in running_monitors:
+        proc.join()
 
 
-@click.command(short_help="start monitoring a csv folder")
-@click.argument('target', type=click.Path(exists=True, file_okay=False))
-@click.argument('archive', type=click.Path(exists=False, file_okay=False))
 def monitor(target, archive):
-    """This command watches over a target folder and processes csv files in it one by one.
-    Once processed files will be moved to the archive folder
+    """Watch over a target folder and process csv files in it one by one.
+    Once processed, files will be moved to the archive folder
     """
 
     if not os.path.exists(archive):
@@ -92,7 +79,7 @@ def monitor(target, archive):
 
         def on_modified(self, event):
             pass
-            
+
         def on_created(self, event):
             self.process(event)
 
@@ -103,6 +90,10 @@ def monitor(target, archive):
     observer = Observer()
     observer.schedule(CsvHandler(), path=target)
     observer.start()
+
+    from elasticsearch import Elasticsearch
+
+    es = Elasticsearch()
 
     try:
         while True:
@@ -124,8 +115,5 @@ def monitor(target, archive):
     observer.join()
 
 
-cli.add_command(start)
-cli.add_command(monitor)
-
 if __name__ == '__main__':
-    cli()
+    start()
